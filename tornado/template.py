@@ -87,6 +87,7 @@ import escape
 import logging
 import os.path
 import re
+import time
 
 
 class Template(object):
@@ -96,8 +97,9 @@ class Template(object):
     the template from variables with generate().
     """
     def __init__(self, template_string, name="<string>", loader=None,
-                 compress_whitespace=None):
+                 modified=time.time(), compress_whitespace=None):
         self.name = name
+        self.modified = modified
         if compress_whitespace is None:
             compress_whitespace = name.endswith(".html") or \
                 name.endswith(".js")
@@ -178,11 +180,23 @@ class Loader(object):
             relative_path = os.path.abspath(os.path.join(file_dir, name))
             if relative_path.startswith(self.root):
                 name = relative_path[len(self.root) + 1:]
-        if name not in self.templates:
-            path = os.path.join(self.root, name)
-            f = open(path, "r")
-            self.templates[name] = Template(f.read(), name=name, loader=self)
-            f.close()
+
+        path = os.path.join(self.root, name)
+
+        if name in self.templates:
+            template = self.templates[name]
+            tt1 = template.modified
+            tt2 = os.path.getmtime(path)
+            # if template is the same age as file return cached template
+            if tt1 == tt2:
+                return template
+
+        f = open(path, 'r')
+        self.templates[name] = Template(f.read(), name=name, loader=self,
+                modified=os.path.getmtime(path))
+
+        f.close() 
+
         return self.templates[name]
 
 
