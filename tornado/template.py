@@ -203,6 +203,8 @@ class Loader(object):
     def load(self, name, parent_path=None):
         name = self.resolve_path(name, parent_path=parent_path)
         if name not in self.templates:
+            if isinstance(name, Template):
+                name = name.name
             path = os.path.join(self.root, name)
             f = open(path, "r")
             self.templates[name] = Template(f.read(), name=name, loader=self)
