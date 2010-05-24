@@ -1143,31 +1143,34 @@ class StaticFileHandler(RequestHandler):
             raise HTTPError(403, "%s is not a file", path)
 
         stat_result = os.stat(abspath)
-        modified = datetime.datetime.fromtimestamp(stat_result[stat.ST_MTIME])
 
-        self.set_header("Last-Modified", modified)
-        if "v" in self.request.arguments:
-            self.set_header("Expires", datetime.datetime.utcnow() + \
-                                       datetime.timedelta(days=365*10))
-            self.set_header("Cache-Control", "max-age=" + str(86400*365*10))
-        else:
-            self.set_header("Cache-Control", "public")
-        mime_type, encoding = mimetypes.guess_type(abspath)
-        if mime_type:
-            self.set_header("Content-Type", mime_type)
+        if not self.settings.get('debug', False):
+            modified = datetime.datetime.fromtimestamp(stat_result[stat.ST_MTIME])
 
-        # Check the If-Modified-Since, and don't send the result if the
-        # content has not been modified
-        ims_value = self.request.headers.get("If-Modified-Since")
-        if ims_value is not None:
-            date_tuple = email.utils.parsedate(ims_value)
-            if_since = datetime.datetime.fromtimestamp(time.mktime(date_tuple))
-            if if_since >= modified:
-                self.set_status(304)
-                return
+            self.set_header("Last-Modified", modified)
+            if "v" in self.request.arguments:
+                self.set_header("Expires", datetime.datetime.utcnow() + \
+                                           datetime.timedelta(days=365*10))
+                self.set_header("Cache-Control", "max-age=" + str(86400*365*10))
+            else:
+                self.set_header("Cache-Control", "public")
+            mime_type, encoding = mimetypes.guess_type(abspath)
+            if mime_type:
+                self.set_header("Content-Type", mime_type)
+
+            # Check the If-Modified-Since, and don't send the result if the
+            # content has not been modified
+            ims_value = self.request.headers.get("If-Modified-Since")
+            if ims_value is not None:
+                date_tuple = email.utils.parsedate(ims_value)
+                if_since = datetime.datetime.fromtimestamp(time.mktime(date_tuple))
+                if if_since >= modified:
+                    self.set_status(304)
+                    return
 
         if not include_body:
             return
+
         self.set_header("Content-Length", stat_result[stat.ST_SIZE])
         file = open(abspath, "rb")
         try:
